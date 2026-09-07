@@ -1,0 +1,26 @@
+# Database
+db.sqlite3
+*.sqlite3
+
+# Environment / secrets (never commit these)
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local settings overrides (if any)
+local_settings.py

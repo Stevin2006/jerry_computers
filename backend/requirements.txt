@@ -1,0 +1,34 @@
+# Jerry Computers — Django auth backend (dev)
+#
+# Install into a fresh venv:
+#   python -m venv venv
+#   venv/bin/pip install --upgrade pip setuptools wheel
+#   venv/bin/pip install -r requirements.txt
+#
+# "console" email backend prints OTPs to stdout during dev.
+# To send real email, swap EMAIL_BACKEND to
+# "django.core.mail.backends.smtp.EmailBackend" and set the
+# EMAIL_HOST / EMAIL_PORT / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD
+# keys in .env (never commit those).
+# 
+# Email config (dev defaults — console backend prints OTPs to stdout).
+# EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+# DEFAULT_FROM_EMAIL=noreply@jerrycomputers.in
+# 
+# To switch to SMTP, set:
+#   EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+#   EMAIL_HOST=smtp.example.com
+#   EMAIL_PORT=587
+#   EMAIL_HOST_USER=your_account
+#   EMAIL_HOST_PASSWORD=your_password
+#   EMAIL_USE_TLS=True
+
+asgiref==3.12.1
+django==5.2.9
+djangorestframework==3.18.0
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+python-decouple==3.9
+pyjwt==2.13.0
+sqlparse==0.6.0
+tzdata==2026.3
