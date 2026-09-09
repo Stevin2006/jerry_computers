@@ -22,4 +22,7 @@ urlpatterns = [
 
     # App auth endpoints (register, verify-otp, login, resend, token/refresh)
     path('api/auth/', include('accounts.urls')),
+
+    # Catalog endpoints (products CRUD, search, filters, brands, categories)
+    path('api/', include('catalog.urls')),
 ]

@@ -34,3 +34,12 @@ export async function getBrands() {
   const { data } = await api.get("/brands/");
   return data;
 }
+
+/**
+ * GET /api/products/:id/ — also used by admin edit to refresh a single product.
+ */
+export async function getProductForEdit(id) {
+  if (config.useMock) return mockBackend.catalogue.detail(id);
+  const { data } = await api.get(`/admin/products/${id}/`);
+  return data;
+}

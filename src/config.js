@@ -6,7 +6,7 @@ const env = import.meta.env;
 
 export const config = {
   /** Base URL of the Django REST API, e.g. http://localhost:8000/api */
-  apiUrl: env.VITE_API_URL || "http://localhost:8000/api",
+  apiUrl: env.VITE_API_URL || "http://127.0.0.1:8000/api",
 
   /**
    * true  → the app runs against the in-browser mock backend (no Django

@@ -31,11 +31,16 @@ const PRICE_OPTIONS = [
 
 export default function Products({ initialCategory = "" }) {
   const [searchParams, setSearchParams] = useSearchParams();
+
   const qParam = searchParams.get("q") || "";
   const dealsParam = searchParams.get("deals") === "1";
 
   const [search, setSearch] = useState(qParam);
-  const [category, setCategory] = useState(initialCategory || searchParams.get("category") || "");
+
+  const [category, setCategory] = useState(
+    initialCategory || searchParams.get("category") || ""
+  );
+
   const [brand, setBrand] = useState("");
   const [maxPrice, setMaxPrice] = useState(0);
   const [minRating, setMinRating] = useState(0);
@@ -51,7 +56,7 @@ export default function Products({ initialCategory = "" }) {
 
   const activeCategory = categoryByKey(category);
 
-  /* keep local state in sync when the URL drives navigation */
+  /* Keep local state in sync when URL drives navigation */
   useEffect(() => {
     setSearch(qParam);
     setDeals(dealsParam);
@@ -62,15 +67,18 @@ export default function Products({ initialCategory = "" }) {
     setPage(1);
   }, [initialCategory]);
 
+  /* Load brands */
   useEffect(() => {
     getBrands()
       .then(setBrands)
       .catch(() => {});
   }, []);
 
+  /* Load products */
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       const params = {
         search,
@@ -82,25 +90,82 @@ export default function Products({ initialCategory = "" }) {
         page,
         pageSize: deals ? 60 : 12,
       };
+
       const data = await getProducts(params);
+
+      /*
+       * Backend currently returns an ARRAY:
+       *
+       * [
+       *   { id: 6, name: "Dell Inspiron 15", ... },
+       *   { id: 5, name: "HP 15s Laptop", ... }
+       * ]
+       *
+       * Frontend expects:
+       *
+       * {
+       *   results: [...]
+       * }
+       *
+       * So normalize both formats here.
+       */
+
+      const products = Array.isArray(data)
+        ? data
+        : data?.results || [];
+
       if (deals) {
-        const list = (data.results || []).filter((p) => p.discount > 0 && (p.tags || []).includes("deal"));
-        setResult({ ...data, results: list, count: list.length });
+        const list = products.filter(
+          (p) =>
+            Number(p.discount || 0) > 0 &&
+            (p.tags || []).includes("deal")
+        );
+
+        setResult({
+          results: list,
+          count: list.length,
+          page: 1,
+          pageCount: 1,
+        });
       } else {
-        setResult(data);
+        setResult({
+          results: products,
+          count: Array.isArray(data)
+            ? products.length
+            : data?.count ?? products.length,
+          page: Array.isArray(data)
+            ? 1
+            : data?.page ?? 1,
+          pageCount: Array.isArray(data)
+            ? 1
+            : data?.pageCount ?? 1,
+        });
       }
     } catch (e) {
+      console.error("Failed to load products:", e);
       setError(e);
     } finally {
       setLoading(false);
     }
-  }, [search, category, brand, maxPrice, minRating, sort, deals, page]);
+  }, [
+    search,
+    category,
+    brand,
+    maxPrice,
+    minRating,
+    sort,
+    deals,
+    page,
+  ]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const count = useMemo(() => result?.count ?? 0, [result]);
+  const count = useMemo(
+    () => result?.count ?? 0,
+    [result]
+  );
 
   const heading = deals
     ? "TODAY'S TECHNOLOGY DEALS"
@@ -130,45 +195,108 @@ export default function Products({ initialCategory = "" }) {
     setPage(1);
   };
 
-  const filterCount = [brand, maxPrice, minRating, search].filter(Boolean).length + (deals ? 1 : 0);
+  const filterCount =
+    [brand, maxPrice, minRating, search].filter(Boolean).length +
+    (deals ? 1 : 0);
 
   const toggleFilter = (key, value) => {
-    if (key === "brand") setBrand((v) => (v === value ? "" : value));
-    if (key === "maxPrice") setMaxPrice((v) => (Number(v) === Number(value) ? 0 : value));
-    if (key === "minRating") setMinRating((v) => (Number(v) === Number(value) ? 0 : value));
+    if (key === "brand") {
+      setBrand((v) => (v === value ? "" : value));
+    }
+
+    if (key === "maxPrice") {
+      setMaxPrice((v) =>
+        Number(v) === Number(value) ? 0 : value
+      );
+    }
+
+    if (key === "minRating") {
+      setMinRating((v) =>
+        Number(v) === Number(value) ? 0 : value
+      );
+    }
+
     setPage(1);
   };
 
   return (
     <div className="page--plain">
+
+      {/* Page Header */}
       <PageHead
-        eyebrow={deals ? "Deals" : activeCategory ? activeCategory.name : "Catalogue"}
+        eyebrow={
+          deals
+            ? "Deals"
+            : activeCategory
+              ? activeCategory.name
+              : "Catalogue"
+        }
         title={heading}
         sub={subtitle}
         crumbs={[
-          { label: "Products", to: "/products" },
-          ...(activeCategory ? [{ label: activeCategory.name }] : []),
+          {
+            label: "Products",
+            to: "/products",
+          },
+          ...(activeCategory
+            ? [{ label: activeCategory.name }]
+            : []),
         ]}
       />
 
       <section className="section section--tight">
         <div className="container">
+
           <div className="catalog-layout">
-            {/* ------------ sidebar ------------ */}
-            <aside className={cx("catalog-side", mobileFilters && "catalog-side--open")}>
-              <div className="card card--pad-sm" style={{ padding: "6px 16px" }}>
+
+            {/* ------------ SIDEBAR ------------ */}
+
+            <aside
+              className={cx(
+                "catalog-side",
+                mobileFilters && "catalog-side--open"
+              )}
+            >
+
+              <div
+                className="card card--pad-sm"
+                style={{ padding: "6px 16px" }}
+              >
+
+                {/* Category */}
                 <div className="filter-group">
-                  <h3 className="filter-group__title" style={{ margin: 0 }}>
+
+                  <h3
+                    className="filter-group__title"
+                    style={{ margin: 0 }}
+                  >
                     Category
                   </h3>
+
                   <div className="filter-options">
-                    <button className={cx("filter-option", !category && "filter-option--active")} onClick={() => { setCategory(""); setPage(1); }}>
+
+                    <button
+                      className={cx(
+                        "filter-option",
+                        !category &&
+                          "filter-option--active"
+                      )}
+                      onClick={() => {
+                        setCategory("");
+                        setPage(1);
+                      }}
+                    >
                       All categories
                     </button>
+
                     {categories.map((c) => (
                       <button
                         key={c.key}
-                        className={cx("filter-option", category === c.key && "filter-option--active")}
+                        className={cx(
+                          "filter-option",
+                          category === c.key &&
+                            "filter-option--active"
+                        )}
                         onClick={() => {
                           setCategory(c.key);
                           setPage(1);
@@ -177,122 +305,283 @@ export default function Products({ initialCategory = "" }) {
                         {c.name}
                       </button>
                     ))}
+
                   </div>
                 </div>
 
+                {/* Brand */}
                 <div className="filter-group">
-                  <h3 className="filter-group__title" style={{ margin: 0 }}>
+
+                  <h3
+                    className="filter-group__title"
+                    style={{ margin: 0 }}
+                  >
                     Brand
                   </h3>
+
                   <div className="filter-options">
-                    <button className={cx("filter-option", !brand && "filter-option--active")} onClick={() => toggleFilter("brand", "")}>
+
+                    <button
+                      className={cx(
+                        "filter-option",
+                        !brand &&
+                          "filter-option--active"
+                      )}
+                      onClick={() =>
+                        toggleFilter("brand", "")
+                      }
+                    >
                       All brands
                     </button>
+
                     {brands.map((b) => (
-                      <button key={b} className={cx("filter-option", brand === b && "filter-option--active")} onClick={() => toggleFilter("brand", b)}>
+                      <button
+                        key={b}
+                        className={cx(
+                          "filter-option",
+                          brand === b &&
+                            "filter-option--active"
+                        )}
+                        onClick={() =>
+                          toggleFilter("brand", b)
+                        }
+                      >
                         {b}
                       </button>
                     ))}
+
                   </div>
                 </div>
 
+                {/* Price */}
                 <div className="filter-group">
-                  <h3 className="filter-group__title" style={{ margin: 0 }}>
+
+                  <h3
+                    className="filter-group__title"
+                    style={{ margin: 0 }}
+                  >
                     Price
                   </h3>
+
                   <div className="filter-options">
+
                     {PRICE_OPTIONS.map((o) => (
-                      <button key={o.value} className={cx("filter-option", Number(maxPrice) === o.value && "filter-option--active")} onClick={() => toggleFilter("maxPrice", o.value)}>
+                      <button
+                        key={o.value}
+                        className={cx(
+                          "filter-option",
+                          Number(maxPrice) === o.value &&
+                            "filter-option--active"
+                        )}
+                        onClick={() =>
+                          toggleFilter(
+                            "maxPrice",
+                            o.value
+                          )
+                        }
+                      >
                         {o.label}
                       </button>
                     ))}
+
                   </div>
                 </div>
 
-                <div className="filter-group" style={{ paddingBottom: 14 }}>
-                  <h3 className="filter-group__title" style={{ margin: 0 }}>
+                {/* Rating */}
+                <div
+                  className="filter-group"
+                  style={{ paddingBottom: 14 }}
+                >
+
+                  <h3
+                    className="filter-group__title"
+                    style={{ margin: 0 }}
+                  >
                     Rating
                   </h3>
+
                   <div className="filter-options">
+
                     {[0, 4, 4.5].map((r) => (
-                      <button key={r} className={cx("filter-option", Number(minRating) === r && "filter-option--active")} onClick={() => toggleFilter("minRating", r)}>
-                        {r === 0 ? "Any rating" : `★★★★ ${r} & above`}
+                      <button
+                        key={r}
+                        className={cx(
+                          "filter-option",
+                          Number(minRating) === r &&
+                            "filter-option--active"
+                        )}
+                        onClick={() =>
+                          toggleFilter(
+                            "minRating",
+                            r
+                          )
+                        }
+                      >
+                        {r === 0
+                          ? "Any rating"
+                          : `★★★★ ${r} & above`}
                       </button>
                     ))}
+
                   </div>
                 </div>
 
-                <button className="btn btn--ghost btn--sm btn--block" onClick={clearFilters}>
-                  <IcX size={14} /> Clear all filters
+                {/* Clear Filters */}
+                <button
+                  className="btn btn--ghost btn--sm btn--block"
+                  onClick={clearFilters}
+                >
+                  <IcX size={14} />
+                  Clear all filters
                 </button>
+
               </div>
             </aside>
 
-            {/* ------------ main ------------ */}
+            {/* ------------ MAIN ------------ */}
+
             <div className="catalog-main">
+
+              {/* Toolbar */}
               <div className="toolbar">
-                <button className="btn btn--outline btn--sm filter-toggle" onClick={() => setMobileFilters((o) => !o)} aria-expanded={mobileFilters}>
-                  <IcFilter size={15} /> Filters {filterCount > 0 && `(${filterCount})`}
+
+                <button
+                  className="btn btn--outline btn--sm filter-toggle"
+                  onClick={() =>
+                    setMobileFilters((o) => !o)
+                  }
+                  aria-expanded={mobileFilters}
+                >
+                  <IcFilter size={15} />
+
+                  Filters{" "}
+                  {filterCount > 0 &&
+                    `(${filterCount})`}
                 </button>
+
                 <span className="toolbar__count">
-                  <b>{count}</b> product{count === 1 ? "" : "s"}
+                  <b>{count}</b>{" "}
+                  product
+                  {count === 1 ? "" : "s"}
                 </span>
+
                 {filterCount > 0 && (
-                  <button className="btn btn--ghost btn--sm" onClick={clearFilters}>
-                    <IcX size={14} /> Reset
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    onClick={clearFilters}
+                  >
+                    <IcX size={14} />
+                    Reset
                   </button>
                 )}
+
                 <span className="spacer" />
-                <label htmlFor="sort" className="small muted" style={{ fontWeight: 600 }}>
+
+                <label
+                  htmlFor="sort"
+                  className="small muted"
+                  style={{ fontWeight: 600 }}
+                >
                   Sort
                 </label>
-                <select id="sort" className="select sort-select" value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }}>
+
+                <select
+                  id="sort"
+                  className="select sort-select"
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value);
+                    setPage(1);
+                  }}
+                >
                   {SORTS.map((s) => (
-                    <option key={s.value} value={s.value}>
+                    <option
+                      key={s.value}
+                      value={s.value}
+                    >
                       {s.label}
                     </option>
                   ))}
                 </select>
+
               </div>
 
-              {error && <ErrorMessage error={error} onRetry={load} />}
+              {/* Error */}
+              {error && (
+                <ErrorMessage
+                  error={error}
+                  onRetry={load}
+                />
+              )}
 
+              {/* Loading */}
               {loading ? (
                 <SkeletonGrid count={8} />
-              ) : result && result.results.length === 0 ? (
+
+              ) : result &&
+                (result.results || []).length === 0 ? (
+
+                /* Empty */
                 <EmptyState
                   icon={<IcPackage size={34} />}
-                  title={deals ? "No deals right now" : "No products found"}
+                  title={
+                    deals
+                      ? "No deals right now"
+                      : "No products found"
+                  }
                   text={
                     deals
                       ? "New deals land regularly — check back soon or browse the full catalogue."
                       : "Try removing some filters or searching for something else."
                   }
                   action={
-                    <button className="btn btn--primary" onClick={clearFilters}>
+                    <button
+                      className="btn btn--primary"
+                      onClick={clearFilters}
+                    >
                       Clear filters & browse all
                     </button>
                   }
                 />
+
               ) : (
+
+                /* Products */
                 <>
                   <div className="grid-products">
-                    {(result?.results || []).map((p) => (
-                      <ProductCard key={p.id} product={p} />
-                    ))}
+
+                    {(result?.results || []).map(
+                      (p) => (
+                        <ProductCard
+                          key={p.id}
+                          product={p}
+                        />
+                      )
+                    )}
+
                   </div>
+
+                  {/* Pagination */}
                   {!deals && (
                     <Pagination
                       page={result?.page || 1}
-                      pageCount={result?.pageCount || 1}
+                      pageCount={
+                        result?.pageCount || 1
+                      }
                       onChange={(p) => {
                         setPage(p);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+
+                        window.scrollTo({
+                          top: 0,
+                          behavior: "smooth",
+                        });
                       }}
                     />
                   )}
+
                 </>
               )}
+
             </div>
           </div>
         </div>

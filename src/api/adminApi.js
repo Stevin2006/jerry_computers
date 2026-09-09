@@ -15,9 +15,15 @@ export async function getDashboard() {
 }
 
 /* ---------- products ---------- */
-export async function adminGetProducts() {
+/**
+ * GET /api/admin/products/
+ * params: { search, category, brand, maxPrice, stock } — server-side search & filter.
+ * Returns a flat array of products (publicProduct shape).
+ */
+export async function adminGetProducts(params = {}) {
   if (config.useMock) return mockBackend.admin.products(authHeader());
-  const { data } = await api.get("/admin/products/");
+  const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== "" && v !== undefined && v !== null));
+  const { data } = await api.get("/admin/products/", { params: clean });
   return data;
 }
 export async function adminCreateProduct(payload) {
@@ -27,7 +33,7 @@ export async function adminCreateProduct(payload) {
 }
 export async function adminUpdateProduct(id, payload) {
   if (config.useMock) return mockBackend.admin.updateProduct(authHeader(), id, payload);
-  const { data } = await api.put(`/admin/products/${id}/`, payload);
+  const { data } = await api.patch(`/admin/products/${id}/`, payload);
   return data;
 }
 export async function adminDeleteProduct(id) {

@@ -11,7 +11,7 @@ import { mockBackend, getPendingOtp as mockOtp } from "./mockBackend";
 /** 1) Register — creates a pending account, Django emails the OTP. */
 export async function register(payload) {
   if (config.useMock) return mockBackend.auth.register(payload);
-  const { data } = await api.post("/auth/register/", payload);
+  const { data } = await api.post("http://127.0.0.1:8000/api/auth/register/", payload);
   return data;
 }
 

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminGetProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct } from "@/api/adminApi";
+import { getBrands } from "@/api/productApi";
 import { categories } from "@/data/mockCategories";
 import StatusBadge from "@/components/StatusBadge";
 import Modal, { ConfirmDialog } from "@/components/Modal";
@@ -12,12 +13,31 @@ import { useToast } from "@/context/ToastContext";
 
 const EMPTY = { name: "", brand: "", category: "computers", tagline: "", description: "", price: "", mrp: "", stock: "", image: "", images: [] };
 
+const PRICE_OPTIONS = [
+  { value: 0, label: "Any price" },
+  { value: 10000, label: "Under ₹10,000" },
+  { value: 25000, label: "Under ₹25,000" },
+  { value: 50000, label: "Under ₹50,000" },
+  { value: 100000, label: "Under ₹1,00,000" },
+  { value: 200000, label: "Under ₹2,00,000" },
+];
+
+const STOCK_OPTIONS = [
+  { value: "", label: "Any stock" },
+  { value: "in", label: "In stock" },
+  { value: "out", label: "Out of stock" },
+];
+
 export default function ProductsManagement() {
   const toast = useToast();
   const [list, setList] = useState(null);
   const [error, setError] = useState(null);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
+  const [brand, setBrand] = useState("");
+  const [maxPrice, setMaxPrice] = useState(0);
+  const [stockFilter, setStockFilter] = useState("");
+  const [brands, setBrands] = useState([]);
   const [modal, setModal] = useState(null); // {mode:'add'|'edit', product}
   const [form, setForm] = useState(EMPTY);
   const [formErr, setFormErr] = useState({});
@@ -26,28 +46,50 @@ export default function ProductsManagement() {
   const [deleting, setDeleting] = useState(false);
   const [stockUpdating, setStockUpdating] = useState({});
 
-  const load = async () => {
-    setError(null);
-    try {
-      setList(await adminGetProducts());
-    } catch (e) {
-      setError(e);
-      setList([]);
-    }
-  };
+  /* Server-side search + filters — partial name match, combinable filters. */
+  const load = useCallback(
+    async () => {
+      setError(null);
+      try {
+        setList(
+          await adminGetProducts({
+            search: q,
+            category: cat,
+            brand,
+            maxPrice: maxPrice || "",
+            stock: stockFilter,
+          })
+        );
+      } catch (e) {
+        setError(e);
+        setList([]);
+      }
+      /* keep the brand filter options in sync with the catalogue */
+      getBrands()
+        .then((bs) => setBrands(bs || []))
+        .catch(() => {});
+    },
+    [q, cat, brand, maxPrice, stockFilter]
+  );
+
+  /* Debounced auto-reload whenever search text or any filter changes. */
   useEffect(() => {
-    load();
-  }, []);
+    const t = setTimeout(load, q ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [load, q]);
+
+  const resetFilters = () => {
+    setQ("");
+    setCat("");
+    setBrand("");
+    setMaxPrice(0);
+    setStockFilter("");
+  };
 
   const filtered = useMemo(() => {
     if (!list) return [];
-    const ql = q.trim().toLowerCase();
-    return list.filter(
-      (p) =>
-        (!cat || p.category === cat) &&
-        (!ql || p.name.toLowerCase().includes(ql) || p.brand.toLowerCase().includes(ql) || String(p.id) === ql)
-    );
-  }, [list, q, cat]);
+    return list;
+  }, [list]);
 
   const openAdd = () => {
     setForm({ ...EMPTY, price: "", mrp: "" });
@@ -153,11 +195,11 @@ export default function ProductsManagement() {
       </div>
 
       <div className="flex-align wrap" style={{ gap: 10, marginBottom: 16 }}>
-        <div className="input-icon" style={{ width: 300, maxWidth: "100%" }}>
+        <div className="input-icon" style={{ width: 260, maxWidth: "100%" }}>
           <IcSearch size={16} />
-          <input className="input" placeholder="Search name, brand or id…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search products" />
+          <input className="input" placeholder="Search products by name…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search products" />
         </div>
-        <select className="select" style={{ width: 190 }} value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Filter category">
+        <select className="select" style={{ width: 170 }} value={cat} onChange={(e) => { setCat(e.target.value); }} aria-label="Filter category">
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c.key} value={c.key}>
@@ -165,6 +207,33 @@ export default function ProductsManagement() {
             </option>
           ))}
         </select>
+        <select className="select" style={{ width: 150 }} value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="Filter brand">
+          <option value="">All brands</option>
+          {brands.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <select className="select" style={{ width: 170 }} value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} aria-label="Filter price">
+          {PRICE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <select className="select" style={{ width: 150 }} value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Filter stock">
+          {STOCK_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {[q, cat, brand, maxPrice, stockFilter].some(Boolean) && (
+          <button className="btn btn--ghost btn--sm" onClick={resetFilters}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       {error ? (
