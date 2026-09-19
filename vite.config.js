@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    allowedHosts: ["sb-3wkmbie76iw7.vercel.run"],
   },
   preview: {
     host: true,
